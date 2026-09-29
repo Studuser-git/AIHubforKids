@@ -1,0 +1,934 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Математика в клетку</title>
+<meta name="description" content="Интерактивный тренажёр по математике для 1–4 классов: примеры, задачи, таблица умножения и подсказки.">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Neucha&family=Nunito:wght@400;600;700;800&display=swap" rel="stylesheet">
+<script>
+  // Тема применяется до отрисовки, чтобы не было мигания
+  try { const t = localStorage.getItem("mvk:theme"); if (t) document.documentElement.dataset.theme = t; } catch (e) {}
+</script>
+<style>
+  :root {
+    color-scheme: light;
+    --paper: #FAFCFD;
+    --grid: rgba(79, 125, 166, .13);
+    --margin: rgba(200, 110, 110, .35);
+    --surface: #FFFFFF;
+    --ink: #25303A;
+    --muted: #5A6875;
+    --line: #D6DFE6;
+    --ok: #2B8663;
+    --ok-soft: #DDF2E9;
+    --bad: #B8514A;
+    --bad-soft: #F8E4E2;
+    --star: #D99A2B;
+    --shadow: 0 12px 30px -16px rgba(37, 48, 58, .28);
+    --g1: #4F7DA6; --g2: #2E9479; --g3: #1C8593; --g4: #4E5A69;
+    --on-g: #FFFFFF;
+    --g: var(--g1);
+    --font-hand: "Neucha", "Comic Sans MS", cursive;
+    --font-body: "Nunito", system-ui, sans-serif;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root:not([data-theme="light"]) {
+      color-scheme: dark;
+      --paper: #1D2126; --grid: rgba(255, 255, 255, .045); --margin: rgba(220, 120, 120, .22);
+      --surface: #252A30; --ink: #E3E8EC; --muted: #9DA9B4; --line: #39424B;
+      --ok: #5CC49A; --ok-soft: #1F3A30; --bad: #E58A83; --bad-soft: #43282A; --star: #E8B558;
+      --shadow: 0 14px 30px -16px rgba(0, 0, 0, .7);
+      --g1: #86ADD0; --g2: #5FC2A5; --g3: #55B7C3; --g4: #A9B4C1; --on-g: #16191D;
+    }
+  }
+  :root[data-theme="dark"] {
+    color-scheme: dark;
+    --paper: #1D2126; --grid: rgba(255, 255, 255, .045); --margin: rgba(220, 120, 120, .22);
+    --surface: #252A30; --ink: #E3E8EC; --muted: #9DA9B4; --line: #39424B;
+    --ok: #5CC49A; --ok-soft: #1F3A30; --bad: #E58A83; --bad-soft: #43282A; --star: #E8B558;
+    --shadow: 0 14px 30px -16px rgba(0, 0, 0, .7);
+    --g1: #86ADD0; --g2: #5FC2A5; --g3: #55B7C3; --g4: #A9B4C1; --on-g: #16191D;
+  }
+  [data-grade="1"] { --g: var(--g1); }
+  [data-grade="2"] { --g: var(--g2); }
+  [data-grade="3"] { --g: var(--g3); }
+  [data-grade="4"] { --g: var(--g4); }
+  :root { --g-soft: color-mix(in srgb, var(--g) 14%, var(--surface)); --g-line: color-mix(in srgb, var(--g) 40%, var(--line)); }
+  body { --g-soft: color-mix(in srgb, var(--g) 14%, var(--surface)); --g-line: color-mix(in srgb, var(--g) 40%, var(--line)); }
+
+  * { box-sizing: border-box; }
+  html { scroll-behavior: smooth; scroll-padding-top: 80px; }
+  body {
+    margin: 0; color: var(--ink); font: 400 17px/1.55 var(--font-body);
+    background-color: var(--paper);
+    background-image:
+      linear-gradient(var(--grid) 1px, transparent 1px),
+      linear-gradient(90deg, var(--grid) 1px, transparent 1px);
+    background-size: 24px 24px;
+    -webkit-font-smoothing: antialiased;
+    overflow-x: hidden;
+  }
+  body::before {
+    content: ""; position: fixed; top: 0; bottom: 0; left: 56px; width: 2px; background: var(--margin); pointer-events: none; z-index: 0;
+  }
+  h1, h2, h3 { font-family: var(--font-hand); font-weight: 400; line-height: 1.15; margin: 0 0 .4em; }
+  h1 { font-size: clamp(40px, 7vw, 68px); }
+  h2 { font-size: clamp(32px, 4.6vw, 44px); }
+  h3 { font-size: 26px; }
+  p { margin: 0 0 1em; }
+  a { color: var(--g); }
+  button { font-family: inherit; }
+  :focus-visible { outline: 3px solid var(--g); outline-offset: 3px; border-radius: 8px; }
+  [hidden] { display: none !important; }
+
+  .container { position: relative; z-index: 1; max-width: 1120px; margin: 0 auto; padding: 0 24px 0 88px; }
+  section { padding: 56px 0; }
+  .muted { color: var(--muted); }
+
+  /* Buttons */
+  .btn {
+    display: inline-flex; align-items: center; justify-content: center; gap: 8px; min-height: 52px;
+    padding: 12px 24px; border-radius: 14px; border: 2px solid transparent; cursor: pointer;
+    font: 800 17px/1.1 var(--font-body); text-decoration: none; transition: transform .12s, background .15s, border-color .15s;
+  }
+  .btn:active { transform: translateY(1px); }
+  .btn-main { background: var(--g); color: var(--on-g); }
+  .btn-main:hover { filter: brightness(1.07); }
+  .btn-soft { background: var(--surface); color: var(--ink); border-color: var(--line); }
+  .btn-soft:hover { border-color: var(--g); }
+  .btn-link { background: none; border: none; color: var(--g); padding: 8px 4px; min-height: 0; font-weight: 800; }
+  .btn-link:hover { text-decoration: underline; }
+
+  /* Header */
+  header.site {
+    position: sticky; top: 0; z-index: 20; background: color-mix(in srgb, var(--paper) 90%, transparent);
+    backdrop-filter: blur(8px); border-bottom: 1px solid var(--line);
+  }
+  .head-in { display: flex; align-items: center; gap: 16px; height: 68px; }
+  .logo { display: flex; align-items: center; gap: 10px; text-decoration: none; color: var(--ink); font: 400 26px var(--font-hand); margin-right: auto; }
+  .logo-mark {
+    width: 40px; height: 40px; border-radius: 10px; background: var(--g); color: var(--on-g); display: grid; place-items: center;
+    font-size: 22px; transition: background .2s;
+  }
+  nav.top { display: flex; gap: 4px; }
+  nav.top a { color: var(--ink); text-decoration: none; font-weight: 700; padding: 8px 12px; border-radius: 10px; }
+  nav.top a:hover { background: var(--g-soft); }
+  .theme-btn {
+    width: 46px; height: 46px; border-radius: 12px; border: 2px solid var(--line); background: var(--surface); color: var(--ink);
+    cursor: pointer; display: grid; place-items: center; flex-shrink: 0;
+  }
+  .theme-btn:hover { border-color: var(--g); }
+  .theme-btn svg { width: 22px; height: 22px; }
+
+  /* Hero */
+  .hero { padding: 48px 0 16px; }
+  .hero-grid { display: grid; grid-template-columns: 1.3fr 1fr; gap: 40px; align-items: center; }
+  .hero .lead { font-size: 19px; color: var(--muted); max-width: 540px; }
+  .sheet {
+    background: var(--surface); border-radius: 18px; box-shadow: var(--shadow); border: 1px solid var(--line);
+    padding: 22px 26px; font: 400 34px/1.5 var(--font-hand); transform: rotate(-1.5deg); position: relative;
+    background-image: linear-gradient(var(--grid) 1px, transparent 1px), linear-gradient(90deg, var(--grid) 1px, transparent 1px);
+    background-size: 22px 22px;
+  }
+  .sheet div { display: flex; justify-content: space-between; gap: 12px; }
+  .sheet .ok { color: var(--ok); }
+  .sheet .stars { color: var(--star); font-size: 30px; margin-top: 6px; }
+
+  /* Grades */
+  .grades { display: grid; grid-template-columns: repeat(4, 1fr); gap: 14px; margin-top: 34px; }
+  .grade-btn {
+    border: 2px solid var(--line); background: var(--surface); border-radius: 18px; padding: 16px 12px; cursor: pointer; color: var(--ink);
+    display: flex; flex-direction: column; align-items: center; gap: 2px; transition: border-color .15s, background .15s, transform .12s;
+  }
+  .grade-btn .num { font: 400 44px/1 var(--font-hand); color: var(--gc); }
+  .grade-btn .lbl { font-weight: 800; font-size: 17px; }
+  .grade-btn .age { font-size: 14px; color: var(--muted); font-weight: 600; }
+  .grade-btn:hover { border-color: var(--gc); transform: translateY(-2px); }
+  .grade-btn[aria-pressed="true"] { background: var(--gc); border-color: var(--gc); color: var(--on-g); }
+  .grade-btn[aria-pressed="true"] .num, .grade-btn[aria-pressed="true"] .age { color: var(--on-g); }
+  .grade-desc {
+    margin-top: 16px; background: var(--g-soft); border-left: 4px solid var(--g); border-radius: 12px; padding: 14px 18px;
+    font-weight: 700;
+  }
+
+  /* Topics */
+  .topics-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 18px; }
+  .topic {
+    background: var(--surface); border: 1px solid var(--line); border-radius: 18px; padding: 20px; display: flex; flex-direction: column;
+    box-shadow: 0 1px 0 var(--line);
+  }
+  .topic h3 { font-size: 26px; margin-bottom: 8px; }
+  .topic .sample {
+    font: 400 30px/1.2 var(--font-hand); color: var(--g); background: var(--g-soft); border-radius: 12px; padding: 10px 14px; margin-bottom: 12px;
+  }
+  .topic .rule { font-size: 15px; color: var(--muted); margin-bottom: 14px; flex-grow: 1; }
+  .topic .row { display: flex; align-items: center; justify-content: space-between; gap: 10px; flex-wrap: wrap; }
+  .topic .best { color: var(--star); font-size: 22px; letter-spacing: 2px; }
+  .topic .best .empty { color: var(--line); }
+  .topic .video { font-size: 15px; font-weight: 800; text-decoration: none; display: inline-flex; align-items: center; gap: 6px; }
+  .topic .video:hover { text-decoration: underline; }
+  .topic .video svg { width: 18px; height: 18px; }
+  .topic .btn { width: 100%; margin-top: 14px; }
+
+  /* Trainer */
+  .trainer { max-width: 760px; margin: 0 auto; }
+  .tr-head { display: flex; align-items: center; justify-content: space-between; gap: 12px; margin-bottom: 8px; flex-wrap: wrap; }
+  .tr-title { font: 400 34px/1.1 var(--font-hand); margin: 4px 0 18px; }
+  .cells { display: grid; grid-template-columns: repeat(10, 1fr); gap: 0; border: 2px solid var(--g-line); border-radius: 10px; overflow: hidden; margin-bottom: 20px; background: var(--surface); }
+  .cell {
+    aspect-ratio: 1; display: grid; place-items: center; font: 800 20px var(--font-body); border-right: 1px solid var(--line);
+    color: var(--muted); max-height: 56px; width: 100%;
+  }
+  .cell:last-child { border-right: none; }
+  .cell.cur { background: var(--g-soft); box-shadow: inset 0 0 0 3px var(--g); color: var(--g); }
+  .cell.ok { background: var(--ok-soft); color: var(--ok); }
+  .cell.bad { background: var(--bad-soft); color: var(--bad); }
+  .task {
+    background: var(--surface); border: 1px solid var(--line); border-radius: 22px; padding: 30px; box-shadow: var(--shadow); text-align: center;
+  }
+  .expr { font: 400 clamp(42px, 9vw, 72px)/1.2 var(--font-hand); margin: 6px 0 24px; word-break: break-word; }
+  .expr.long { font: 700 clamp(19px, 2.6vw, 22px)/1.5 var(--font-body); text-align: left; max-width: 600px; margin: 6px auto 24px; }
+  .box {
+    display: inline-block; min-width: 1.3em; padding: 0 .15em; border: 3px dashed var(--g); border-radius: 12px; color: var(--g); line-height: 1.1;
+  }
+  .box.ok { border-style: solid; border-color: var(--ok); color: var(--ok); background: var(--ok-soft); }
+  .box.bad { border-style: solid; border-color: var(--bad); color: var(--bad); background: var(--bad-soft); }
+  .dots { display: grid; grid-template-columns: repeat(5, 44px); gap: 12px; justify-content: center; margin: 4px auto 10px; }
+  .dots i { width: 44px; height: 44px; border-radius: 50%; background: var(--g); display: block; }
+  .dots-q { font: 400 32px var(--font-hand); margin-bottom: 20px; }
+  .answer { display: flex; justify-content: center; align-items: center; gap: 10px; flex-wrap: wrap; }
+  .answer .pre, .answer .unit { font: 400 34px var(--font-hand); }
+  .answer input {
+    width: 150px; height: 64px; text-align: center; font: 800 30px var(--font-body); color: var(--ink); background: var(--paper);
+    border: 3px solid var(--line); border-radius: 14px;
+  }
+  .answer input:focus { outline: none; border-color: var(--g); }
+  .answer input.shake { animation: shake .35s; border-color: var(--bad); }
+  .answer .btn { height: 64px; }
+  .cmp-btn { width: 84px; height: 76px; font: 400 48px/1 var(--font-hand); border-radius: 16px; border: 3px solid var(--line); background: var(--paper); color: var(--ink); cursor: pointer; }
+  .cmp-btn:hover:not(:disabled) { border-color: var(--g); background: var(--g-soft); }
+  .cmp-btn:disabled { cursor: default; opacity: .6; }
+  .cmp-btn.picked-ok { border-color: var(--ok); background: var(--ok-soft); color: var(--ok); opacity: 1; }
+  .cmp-btn.picked-bad { border-color: var(--bad); background: var(--bad-soft); color: var(--bad); opacity: 1; }
+  .hint-row { margin-top: 18px; }
+  .hint {
+    margin: 12px auto 0; max-width: 560px; background: var(--g-soft); border-radius: 14px; padding: 14px 18px; text-align: left; font-weight: 700;
+    border-left: 4px solid var(--g);
+  }
+  .feedback { margin-top: 22px; display: flex; flex-direction: column; align-items: center; gap: 14px; }
+  .feedback .msg { font: 400 34px var(--font-hand); }
+  .feedback .msg.ok { color: var(--ok); }
+  .feedback .msg.bad { color: var(--bad); }
+  .feedback .msg small { display: block; font: 700 18px var(--font-body); color: var(--ink); }
+  details.rule-box { margin-top: 18px; background: var(--surface); border: 1px solid var(--line); border-radius: 16px; padding: 0 20px; }
+  details.rule-box summary { cursor: pointer; font-weight: 800; padding: 16px 0; list-style: none; display: flex; align-items: center; gap: 10px; }
+  details.rule-box summary::-webkit-details-marker { display: none; }
+  details.rule-box summary::before { content: "📏"; }
+  details.rule-box summary::after { content: "▾"; margin-left: auto; color: var(--muted); transition: transform .2s; }
+  details.rule-box[open] summary::after { transform: rotate(180deg); }
+  details.rule-box p { margin: 0 0 18px; font-size: 18px; }
+  .result { text-align: center; }
+  .result .big-stars { font-size: 64px; color: var(--star); letter-spacing: 6px; line-height: 1.2; }
+  .result .big-stars .empty { color: var(--line); }
+  .result .score { font: 400 44px var(--font-hand); margin: 6px 0 4px; }
+  .result .actions { display: flex; justify-content: center; flex-wrap: wrap; gap: 12px; margin-top: 22px; }
+
+  @keyframes shake { 25% { transform: translateX(-6px); } 75% { transform: translateX(6px); } }
+
+  /* Multiplication table */
+  .mt-wrap { display: grid; grid-template-columns: auto 1fr; gap: 36px; align-items: start; }
+  .mt { display: grid; grid-template-columns: repeat(11, 44px); gap: 3px; background: var(--surface); padding: 12px; border-radius: 18px; border: 1px solid var(--line); box-shadow: var(--shadow); }
+  .mt > * {
+    height: 44px; min-width: 0; padding: 0; display: grid; place-items: center; border-radius: 8px; font-weight: 700; font-size: 16px; border: none; color: var(--ink); background: transparent;
+  }
+  .mt .h { font: 400 24px var(--font-hand); color: var(--g); background: var(--g-soft); }
+  .mt .corner { font: 400 24px var(--font-hand); color: var(--muted); }
+  .mt button { cursor: pointer; background: var(--paper); }
+  .mt button:hover { background: var(--g-soft); }
+  .mt .hl { background: var(--g-soft); }
+  .mt .h.hl { background: var(--g); color: var(--on-g); }
+  .mt .sel { background: var(--g) !important; color: var(--on-g); font-weight: 800; }
+  .mt-out { font: 400 clamp(48px, 7vw, 72px)/1.1 var(--font-hand); color: var(--g); min-height: 1.2em; margin: 8px 0 16px; }
+
+  /* Materials */
+  .mat-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 18px; }
+  .mat { background: var(--surface); border: 1px solid var(--line); border-radius: 18px; padding: 22px; }
+  .mat h3 { display: flex; align-items: center; gap: 10px; }
+  .mat h3 svg { width: 26px; height: 26px; color: var(--g); flex-shrink: 0; }
+  .mat ul { list-style: none; padding: 0; margin: 0; display: grid; gap: 4px; }
+  .mat li a { display: flex; justify-content: space-between; gap: 10px; padding: 9px 12px; border-radius: 10px; text-decoration: none; color: var(--ink); font-weight: 700; }
+  .mat li a:hover { background: var(--g-soft); color: var(--g); }
+  .mat li a::after { content: "↗"; color: var(--muted); }
+  .mat .sub { font-size: 13px; font-weight: 800; text-transform: uppercase; letter-spacing: .06em; color: var(--muted); margin: 14px 0 4px; }
+  .parent-note {
+    margin-top: 20px; display: flex; gap: 14px; align-items: flex-start; background: var(--surface); border: 2px dashed var(--g-line);
+    border-radius: 16px; padding: 16px 20px; font-weight: 700;
+  }
+  .parent-note span { font-size: 28px; line-height: 1; }
+
+  footer { padding: 32px 0 48px; color: var(--muted); font-size: 15px; }
+  footer .container { display: flex; justify-content: space-between; gap: 12px; flex-wrap: wrap; border-top: 1px solid var(--line); padding-top: 24px; }
+
+  @media (max-width: 960px) {
+    .topics-grid, .mat-grid { grid-template-columns: repeat(2, 1fr); }
+    .mt-wrap { grid-template-columns: 1fr; }
+    .hero-grid { grid-template-columns: 1fr; }
+    .sheet { max-width: 420px; }
+  }
+  @media (max-width: 720px) {
+    body::before { display: none; }
+    .container { padding: 0 16px; }
+    nav.top { display: none; }
+    section { padding: 40px 0; }
+    .hero { padding-top: 28px; }
+    .grades { grid-template-columns: repeat(2, 1fr); }
+    .topics-grid, .mat-grid { grid-template-columns: 1fr; }
+    .task { padding: 22px 16px; }
+    .cell { font-size: 15px; }
+    .dots { grid-template-columns: repeat(5, 40px); gap: 10px; }
+    .dots i { width: 40px; height: 40px; }
+    .mt-wrap > * { min-width: 0; }
+    .mt { grid-template-columns: repeat(11, minmax(0, 1fr)); padding: 6px; gap: 2px; width: 100%; }
+    .mt > * { height: auto; aspect-ratio: 1; font-size: 13px; }
+    .mt .h, .mt .corner { font-size: 18px; }
+    .answer input { width: 130px; }
+    .cmp-btn { width: 76px; }
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    html { scroll-behavior: auto; }
+    *, *::before, *::after { animation: none !important; transition: none !important; }
+  }
+</style>
+</head>
+<body data-grade="1">
+
+<header class="site">
+  <div class="container head-in">
+    <a href="#top" class="logo"><span class="logo-mark">×</span>Математика в клетку</a>
+    <nav class="top" aria-label="Разделы">
+      <a href="#grades">Темы</a>
+      <a href="#table">Таблица умножения</a>
+      <a href="#materials">Материалы</a>
+    </nav>
+    <button class="theme-btn" id="themeBtn" type="button" aria-label="Переключить тему"></button>
+  </div>
+</header>
+
+<main id="top">
+  <section class="hero">
+    <div class="container">
+      <div class="hero-grid">
+        <div>
+          <h1>Математика в клетку</h1>
+          <p class="lead">Тренажёр для 1–4 классов. Решай по 10 примеров, получай звёзды, а если трудно — нажми «Подсказка».</p>
+        </div>
+        <div class="sheet" aria-hidden="true">
+          <div><span>8 + 5 = 13</span><span class="ok">✓</span></div>
+          <div><span>7 × 8 = 56</span><span class="ok">✓</span></div>
+          <div><span>x + 27 = 64</span><span class="ok">✓</span></div>
+          <div class="stars">★★★</div>
+        </div>
+      </div>
+
+      <h2 style="margin-top:36px;font-size:32px">Выбери свой класс</h2>
+      <div class="grades" role="group" aria-label="Класс" id="gradeBtns"></div>
+      <div class="grade-desc" id="gradeDesc" aria-live="polite"></div>
+    </div>
+  </section>
+
+  <section id="grades">
+    <div class="container">
+      <div id="topicsView">
+        <h2 id="topicsTitle">Темы</h2>
+        <div class="topics-grid" id="topicsGrid"></div>
+      </div>
+
+      <div id="trainerView" class="trainer" hidden>
+        <div class="tr-head">
+          <button class="btn btn-link" id="backBtn" type="button">← Все темы</button>
+          <span class="muted" id="trCounter" style="font-weight:800"></span>
+        </div>
+        <div class="tr-title" id="trTitle"></div>
+        <div class="cells" id="cells" aria-hidden="true"></div>
+        <div class="task" id="task" aria-live="polite"></div>
+        <details class="rule-box" id="ruleBox">
+          <summary>Правило</summary>
+          <p id="ruleText"></p>
+        </details>
+      </div>
+    </div>
+  </section>
+
+  <section id="table">
+    <div class="container">
+      <h2>Таблица умножения</h2>
+      <div class="mt-wrap">
+        <div class="mt" id="mt" role="grid" aria-label="Таблица умножения 10 на 10"></div>
+        <div>
+          <p class="muted" style="font-weight:700;margin-bottom:0">Нажми на любую клетку</p>
+          <div class="mt-out" id="mtOut" aria-live="polite">? × ? = ?</div>
+          <p class="muted">Строка и столбец подсветятся — так видно, какие числа умножаются. Заметь: 3 × 7 и 7 × 3 дают одно и то же число, поэтому таблицу нужно выучить только наполовину.</p>
+          <button class="btn btn-main" type="button" id="mtTrain">Тренировать таблицу умножения</button>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <section id="materials">
+    <div class="container">
+      <h2>Дополнительные материалы</h2>
+      <p class="muted">Ссылки откроются в новой вкладке.</p>
+      <div class="mat-grid">
+        <div class="mat">
+          <h3><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="5" width="20" height="14" rx="4"/><path d="M10 9l5 3-5 3z" fill="currentColor"/></svg>Видеоуроки YouTube</h3>
+          <div class="sub">По классам</div>
+          <ul id="ytGrades"></ul>
+          <div class="sub" id="ytTopicsTitle">По темам</div>
+          <ul id="ytTopics"></ul>
+        </div>
+        <div class="mat">
+          <h3><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 10l9-6 9 6-9 6z"/><path d="M7 12.5V17c0 1 2.2 3 5 3s5-2 5-3v-4.5"/></svg>Школьные сайты</h3>
+          <ul>
+            <li><a href="https://resh.edu.ru/" target="_blank" rel="noopener">Российская электронная школа</a></li>
+            <li><a href="https://uchi.ru/" target="_blank" rel="noopener">Учи.ру</a></li>
+            <li><a href="https://www.yaklass.ru/" target="_blank" rel="noopener">ЯКласс</a></li>
+            <li><a href="https://interneturok.ru/" target="_blank" rel="noopener">InternetUrok</a></li>
+          </ul>
+        </div>
+        <div class="mat">
+          <h3><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M6 9V3h12v6"/><rect x="3" y="9" width="18" height="8" rx="2"/><path d="M6 14h12v7H6z"/></svg>Распечатки и прописи</h3>
+          <ul>
+            <li><a href="https://infourok.ru/" target="_blank" rel="noopener">Инфоурок</a></li>
+            <li><a href="https://multiurok.ru/" target="_blank" rel="noopener">Мультиурок</a></li>
+            <li><a href="https://nsportal.ru/" target="_blank" rel="noopener">nsportal.ru</a></li>
+            <li><a href="https://yandex.ru/search/?text=%D0%BF%D1%80%D0%BE%D0%BF%D0%B8%D1%81%D0%B8+%D1%86%D0%B8%D1%84%D1%80+%D1%80%D0%B0%D1%81%D0%BF%D0%B5%D1%87%D0%B0%D1%82%D0%B0%D1%82%D1%8C" target="_blank" rel="noopener">Прописи цифр — поиск</a></li>
+          </ul>
+        </div>
+      </div>
+      <div class="parent-note"><span>👨‍👩‍👧</span><div>Родителям: детям лучше смотреть видео вместе со взрослыми — так проще обсудить непонятное и не уйти по рекомендациям в сторону.</div></div>
+    </div>
+  </section>
+</main>
+
+<footer>
+  <div class="container">
+    <span>Математика в клетку · тренажёр для 1–4 классов</span>
+    <span>Работает прямо в браузере. Личные данные не собираются.</span>
+  </div>
+</footer>
+
+<script>
+(() => {
+  // ---------- Хранилище (сайт работает, даже если сохранение запрещено) ----------
+  const store = {
+    get(k, d) { try { const v = localStorage.getItem(k); return v === null ? d : JSON.parse(v); } catch (e) { return d; } },
+    set(k, v) { try { localStorage.setItem(k, JSON.stringify(v)); } catch (e) {} },
+  };
+
+  // ---------- Утилиты ----------
+  const r = (a, b) => a + Math.floor(Math.random() * (b - a + 1));
+  const pick = (arr) => arr[Math.floor(Math.random() * arr.length)];
+  const pl = (n, f) => { const a = n % 10, b = n % 100; return f[a === 1 && b !== 11 ? 0 : a >= 2 && a <= 4 && (b < 10 || b >= 20) ? 1 : 2]; };
+  const yt = (q) => "https://www.youtube.com/results?search_query=" + encodeURIComponent(q);
+  const $ = (id) => document.getElementById(id);
+
+  // ---------- Генераторы заданий ----------
+  const G = {
+    // 1 класс
+    count() {
+      const n = r(1, 10);
+      return { dots: n, answer: n, key: "d" + n,
+        hint: n > 5 ? "В первом ряду 5 кружков. Досчитай второй ряд: 6, 7, …" : "Считай по порядку: 1, 2, 3… Каждый кружок — один раз." };
+    },
+    add10() {
+      const a = r(1, 9), b = r(1, 10 - a), big = Math.max(a, b), sm = Math.min(a, b);
+      const seq = Array.from({ length: sm }, (_, k) => big + k + 1);
+      return { text: `${a} + ${b} = □`, answer: a + b, hint: `Начни с ${big} и досчитай ещё ${sm}: ${seq.join(", ")}.` };
+    },
+    sub10() {
+      const a = r(2, 10), b = r(1, a);
+      return { text: `${a} − ${b} = □`, answer: a - b, hint: `Вспомни состав числа ${a}: ${a} = ${b} + ${a - b}.` };
+    },
+    cmp() {
+      let L, lv, hint;
+      if (Math.random() < .4) {
+        const x = r(1, 8), y = r(1, 10 - x); lv = x + y; L = `${x} + ${y}`;
+        const R = Math.random() < .3 ? lv : r(2, 10);
+        hint = `Сначала посчитай: ${x} + ${y} = ${lv}. Теперь сравни ${lv} и ${R}.`;
+        return { text: `${L} □ ${R}`, cmp: true, answer: lv > R ? ">" : lv < R ? "<" : "=", hint };
+      }
+      lv = r(0, 20); const R = Math.random() < .25 ? lv : r(0, 20);
+      return { text: `${lv} □ ${R}`, cmp: true, answer: lv > R ? ">" : lv < R ? "<" : "=",
+        hint: "Больше то число, которое при счёте называют позже. «Клюв» знака открыт к большему числу." };
+    },
+    through10() {
+      if (Math.random() < .6) {
+        const a = r(2, 9), b = r(Math.max(2, 11 - a), 9), to10 = 10 - a;
+        return { text: `${a} + ${b} = □`, answer: a + b,
+          hint: `Дополни ${a} до 10: ${a} + ${to10} = 10. Осталось прибавить ${b - to10}.` };
+      }
+      const c = r(11, 18), u = c - 10, b = r(u + 1, 9);
+      return { text: `${c} − ${b} = □`, answer: c - b,
+        hint: `Сначала вычти ${u}: ${c} − ${u} = 10. Осталось вычесть ${b - u}.` };
+    },
+    missing() {
+      const v = r(0, 2);
+      if (v === 0) { const a = r(1, 8), c = r(a + 1, 10); return { text: `${a} + □ = ${c}`, answer: c - a, hint: `Сколько не хватает от ${a} до ${c}? Из ${c} вычти ${a}.` }; }
+      if (v === 1) { const b = r(1, 8), c = r(b + 1, 10); return { text: `□ + ${b} = ${c}`, answer: c - b, hint: `Неизвестное слагаемое: из ${c} вычти ${b}.` }; }
+      const c = r(3, 10), d = r(0, c - 1); return { text: `${c} − □ = ${d}`, answer: c - d, hint: `Сколько убрали, если из ${c} осталось ${d}? Вычти: ${c} − ${d}.` };
+    },
+
+    // 2 класс
+    add100() {
+      const a = r(11, 88), b = r(5, 99 - a), at = a - a % 10, bt = b - b % 10, to = 10 - a % 10;
+      let hint = `Десятки: ${at} + ${bt} = ${at + bt}. Единицы: ${a % 10} + ${b % 10} = ${a % 10 + b % 10}. Теперь сложи эти числа.`;
+      if (b < 10) hint = a % 10 + b >= 10 && to < b
+        ? `Дополни до круглого: ${a} + ${to} = ${a + to}. Осталось прибавить ${b - to}.`
+        : `Десятки не меняются, сложи единицы: ${a % 10} + ${b}.`;
+      return { text: `${a} + ${b} = □`, answer: a + b, hint };
+    },
+    sub100() {
+      const a = r(21, 99), b = r(5, a - 1), bt = b - b % 10, bu = b % 10;
+      const hint = bt && bu ? `Вычитай по частям: ${a} − ${bt} = ${a - bt}, потом ${a - bt} − ${bu}.`
+        : "Вычитай отдельно десятки и единицы.";
+      return { text: `${a} − ${b} = □`, answer: a - b, hint };
+    },
+    mul2345() {
+      const k = pick([2, 3, 4, 5]), m = r(1, 10);
+      const [x, y] = Math.random() < .5 ? [m, k] : [k, m];
+      const [rep, times] = y <= 5 ? [x, y] : [y, x];
+      return { text: `${x} × ${y} = □`, answer: x * y,
+        hint: `${x} × ${y} — это ${times} ${pl(times, ["раз", "раза", "раз"])} по ${rep}: ${Array(times).fill(rep).join(" + ")}.` };
+    },
+    length2() {
+      const n = r(1, 9), v = r(0, 4);
+      if (v === 0) return { text: `${n} дм = □ см`, answer: n * 10, hint: "1 дм = 10 см." };
+      if (v === 1) return { text: `${n} м = □ дм`, answer: n * 10, hint: "1 м = 10 дм." };
+      if (v === 2) return { text: `${n} м = □ см`, answer: n * 100, hint: "1 м = 100 см." };
+      if (v === 3) { const c = r(1, 9); return { text: `${n} дм ${c} см = □ см`, answer: n * 10 + c, hint: `${n} дм = ${n * 10} см. Прибавь ещё ${c} см.` }; }
+      return { text: `${n * 10} см = □ дм`, answer: n, hint: "10 см = 1 дм. Сколько раз по 10 помещается?" };
+    },
+    word2() {
+      return { ...pick([
+        () => { const a = r(8, 20), b = r(2, a - 2); return { text: `У Маши было ${a} ${pl(a, ["яблоко", "яблока", "яблок"])}. Она отдала ${b}. Сколько яблок осталось?`, answer: a - b, hint: `Отдала — значит, стало меньше. Вычитаем: ${a} − ${b}.` }; },
+        () => { const a = r(8, 16), b = r(7, 16); return { text: `В классе ${a} ${pl(a, ["девочка", "девочки", "девочек"])} и ${b} ${pl(b, ["мальчик", "мальчика", "мальчиков"])}. Сколько всего детей в классе?`, answer: a + b, hint: `«Всего» — складываем: ${a} + ${b}.` }; },
+        () => { const a = r(12, 40), b = r(3, 15); return { text: `На первой полке ${a} ${pl(a, ["книга", "книги", "книг"])}, а на второй — на ${b} больше. Сколько книг на второй полке?`, answer: a + b, hint: `«На ${b} больше» — прибавляем: ${a} + ${b}.` }; },
+        () => { const a = r(15, 50), b = r(3, 12); return { text: `У Пети ${a} ${pl(a, ["марка", "марки", "марок"])}, а у Коли на ${b} меньше. Сколько марок у Коли?`, answer: a - b, hint: `«На ${b} меньше» — вычитаем: ${a} − ${b}.` }; },
+        () => { const n = r(2, 5), k = r(2, 5); return { text: `В ${n} коробках по ${k} ${pl(k, ["карандаш", "карандаша", "карандашей"])}. Сколько всего карандашей?`, answer: n * k, hint: `По ${k} взяли ${n} ${pl(n, ["раз", "раза", "раз"])}: ${k} × ${n}.` }; },
+        () => { const a = r(5, 20), b = r(2, 9); return { text: `На ветке было ${a} воробьёв. Прилетели ещё ${b}. Сколько воробьёв стало на ветке?`, answer: a + b, hint: `Прилетели — стало больше: ${a} + ${b}.` }; },
+      ])(), pre: "Ответ:" };
+    },
+    perim2() {
+      const a = r(3, 9), b = r(2, a);
+      return { text: `У прямоугольника длина ${a} см, ширина ${b} см. Найди периметр.`, pre: "P =", unit: "см", answer: 2 * (a + b),
+        hint: `Сложи все четыре стороны: ${a} + ${b} + ${a} + ${b}.` };
+    },
+
+    // 3 класс
+    multab() {
+      const a = r(2, 9), b = r(2, 9);
+      return { text: `${a} × ${b} = □`, answer: a * b,
+        hint: b > 2 ? `Вспомни соседний пример: ${a} × ${b - 1} = ${a * (b - 1)}. Прибавь ещё ${a}.` : `${a} × 2 = ${a} + ${a}.` };
+    },
+    divtab() {
+      const a = r(2, 9), b = r(2, 9), c = a * b;
+      return { text: `${c} ÷ ${a} = □`, answer: b, hint: `На какое число нужно умножить ${a}, чтобы получить ${c}? ${a} × ? = ${c}.` };
+    },
+    order() {
+      return pick([
+        () => { const a = r(2, 30), b = r(2, 9), c = r(2, 9); return { text: `${a} + ${b} × ${c} = □`, answer: a + b * c, hint: `Сначала умножение: ${b} × ${c} = ${b * c}. Потом сложение: ${a} + ${b * c}.` }; },
+        () => { const a = r(1, 8), b = r(1, 10 - a), c = r(2, 9); return { text: `(${a} + ${b}) × ${c} = □`, answer: (a + b) * c, hint: `Сначала скобки: ${a} + ${b} = ${a + b}. Потом ${a + b} × ${c}.` }; },
+        () => { const b = r(2, 6), c = r(2, 6), a = b * c + r(1, 40); return { text: `${a} − ${b} × ${c} = □`, answer: a - b * c, hint: `Сначала умножение: ${b} × ${c} = ${b * c}. Потом вычитание: ${a} − ${b * c}.` }; },
+        () => { const d = r(2, 9), k = r(2, 9), c = d * k, a = r(2, 9), b = r(2, 9); return { text: `${a} × ${b} + ${c} ÷ ${d} = □`, answer: a * b + k, hint: `Сначала умножение и деление: ${a} × ${b} = ${a * b}, ${c} ÷ ${d} = ${k}. Потом сложение.` }; },
+        () => { const c = r(2, 9), k = r(2, 9), b = r(1, 20), a = c * k + b; return { text: `(${a} − ${b}) ÷ ${c} = □`, answer: k, hint: `Сначала скобки: ${a} − ${b} = ${a - b}. Потом ${a - b} ÷ ${c}.` }; },
+        () => { const a = r(20, 60), b = r(2, 19), c = r(2, 19); return { text: `${a} − ${b} + ${c} = □`, answer: a - b + c, hint: `Сложение и вычитание — по порядку слева направо: сначала ${a} − ${b} = ${a - b}, потом + ${c}.` }; },
+      ])();
+    },
+    extra() {
+      if (Math.random() < .5) {
+        const a = r(11, 29), b = r(2, 4), t = a - a % 10, u = a % 10;
+        return { text: `${a} × ${b} = □`, answer: a * b,
+          hint: u ? `Разложи ${a} = ${t} + ${u}: ${t} × ${b} = ${t * b}, ${u} × ${b} = ${u * b}. Сложи.` : `${t / 10} десятка × ${b} = ${t * b / 10} десятков.` };
+      }
+      const b = r(2, 6), q = r(11, Math.min(19, Math.floor(99 / b))), c = b * q, p = b * 10;
+      return { text: `${c} ÷ ${b} = □`, answer: q,
+        hint: `Представь ${c} = ${p} + ${c - p}: ${p} ÷ ${b} = 10, ${c - p} ÷ ${b} = ${q - 10}. Сложи.` };
+    },
+    remainder() {
+      const b = r(2, 9), q = r(1, 9), rem = r(1, b - 1), a = b * q + rem;
+      const hint = `Ближайшее меньшее число, которое делится на ${b}, — это ${b * q}. ${b * q} ÷ ${b} = ${q}. Остаток: ${a} − ${b * q}.`;
+      return Math.random() < .5
+        ? { text: `${a} ÷ ${b} = □ (ост. ${rem})`, answer: q, hint }
+        : { text: `${a} ÷ ${b} = ${q} (ост. □)`, answer: rem, hint };
+    },
+    area() {
+      const a = r(3, 9), b = r(2, 9);
+      return { text: `Длина прямоугольника ${a} см, ширина ${b} см. Найди площадь.`, pre: "S =", unit: "см²", answer: a * b,
+        hint: `Площадь = длина × ширина: ${a} × ${b}.` };
+    },
+
+    // 4 класс
+    bigAddSub() {
+      if (Math.random() < .5) {
+        const a = r(1000, 8899), b = r(100, 9999 - a);
+        return { text: `${a} + ${b} = □`, answer: a + b, hint: "Запиши столбиком: единицы под единицами, десятки под десятками. Складывай справа налево, не забывай переносить десяток." };
+      }
+      const a = r(1000, 9999), b = r(100, a - 1);
+      return { text: `${a} − ${b} = □`, answer: a - b, hint: "Запиши столбиком. Вычитай справа налево; если цифры не хватает — займи десяток у соседнего разряда." };
+    },
+    mul1() {
+      const a = r(102, 999), b = r(2, 9), h = Math.floor(a / 100) * 100, t = Math.floor(a / 10) % 10 * 10, u = a % 10;
+      const parts = [h, t, u].filter(Boolean);
+      return { text: `${a} × ${b} = □`, answer: a * b,
+        hint: `Умножь каждый разряд: ${parts.map(p => `${p} × ${b} = ${p * b}`).join("; ")}. Сложи результаты.` };
+    },
+    div1() {
+      const b = r(2, 9), q = r(101, 999), c = b * q, s = String(c);
+      let p = 0, i = 0; while (p < b) { p = p * 10 + +s[i]; i++; }
+      const n = s.length - i + 1;
+      return { text: `${c} ÷ ${b} = □`, answer: q,
+        hint: `Первое неполное делимое — ${p}. Значит, в частном ${n} ${pl(n, ["цифра", "цифры", "цифр"])}. Начни: ${p} ÷ ${b}.` };
+    },
+    units4() {
+      const [B, S, k] = pick([["ч", "мин", 60], ["мин", "с", 60], ["сут", "ч", 24], ["кг", "г", 1000], ["т", "кг", 1000], ["ц", "кг", 100], ["км", "м", 1000], ["м", "см", 100]]);
+      const n = r(2, 9), v = r(0, 2);
+      if (v === 0) return { text: `${n} ${B} = □ ${S}`, answer: n * k, hint: `1 ${B} = ${k} ${S}. Умножь ${k} на ${n}.` };
+      if (v === 1) { const m = k >= 100 ? r(1, 9) * (k / 10) + r(0, k / 10 - 1) : r(1, k - 1); return { text: `${n} ${B} ${m} ${S} = □ ${S}`, answer: n * k + m, hint: `1 ${B} = ${k} ${S}. Переведи ${n} ${B} в ${S} и прибавь ${m}.` }; }
+      return { text: `${n * k} ${S} = □ ${B}`, answer: n, hint: `1 ${B} = ${k} ${S}. Сколько раз по ${k} помещается в ${n * k}?` };
+    },
+    speed() {
+      const v = r(0, 2);
+      if (v === 0) { const s = r(8, 20), t = r(2, 6); return { text: `Велосипедист ехал ${t} ч со скоростью ${s} км/ч. Какое расстояние он проехал?`, pre: "s =", unit: "км", answer: s * t, hint: `Расстояние = скорость × время: ${s} × ${t}.` }; }
+      if (v === 1) { const sp = r(4, 9) * 10, t = r(2, 6); return { text: `Поезд прошёл ${sp * t} км за ${t} ч. С какой скоростью он ехал?`, pre: "v =", unit: "км/ч", answer: sp, hint: `Скорость = расстояние ÷ время: ${sp * t} ÷ ${t}.` }; }
+      const sp = r(3, 6), t = r(2, 5); return { text: `Пешеход прошёл ${sp * t} км со скоростью ${sp} км/ч. Сколько часов он был в пути?`, pre: "t =", unit: "ч", answer: t, hint: `Время = расстояние ÷ скорость: ${sp * t} ÷ ${sp}.` };
+    },
+    equation() {
+      const out = pick([
+        () => { const x = r(10, 99), a = r(10, 99); return [`x + ${a} = ${x + a}`, x, `Неизвестное слагаемое: из суммы вычти известное слагаемое: ${x + a} − ${a}.`]; },
+        () => { const x = r(10, 99), a = r(10, 99); return [`${a} + x = ${x + a}`, x, `Неизвестное слагаемое: из суммы вычти известное слагаемое: ${x + a} − ${a}.`]; },
+        () => { const x = r(30, 150), a = r(5, x - 5); return [`x − ${a} = ${x - a}`, x, `Неизвестное уменьшаемое: к разности прибавь вычитаемое: ${x - a} + ${a}.`]; },
+        () => { const a = r(30, 150), x = r(5, a - 5); return [`${a} − x = ${a - x}`, x, `Неизвестное вычитаемое: из уменьшаемого вычти разность: ${a} − ${a - x}.`]; },
+        () => { const a = r(2, 9), x = r(2, 25); return [`x × ${a} = ${a * x}`, x, `Неизвестный множитель: произведение раздели на известный множитель: ${a * x} ÷ ${a}.`]; },
+        () => { const a = r(2, 9), b = r(2, 15); return [`x ÷ ${a} = ${b}`, a * b, `Неизвестное делимое: частное умножь на делитель: ${b} × ${a}.`]; },
+        () => { const x = r(2, 9), b = r(2, 12); return [`${x * b} ÷ x = ${b}`, x, `Неизвестный делитель: делимое раздели на частное: ${x * b} ÷ ${b}.`]; },
+      ])();
+      return { text: out[0], answer: out[1], hint: out[2], pre: "x =", eq: true };
+    },
+  };
+
+  // ---------- Классы и темы ----------
+  const GRADES = {
+    1: { age: "6–7 лет", desc: "Считаем до 10 и до 20, складываем и вычитаем, сравниваем числа и находим пропущенные.",
+      topics: [
+        { id: "count", t: "Счёт до 10", s: "●●●●● = 5", rule: "Считай по порядку и касайся каждого предмета только один раз. Последнее названное число — ответ.", hintMode: "example" },
+        { id: "add10", t: "Сложение до 10", s: "4 + 3 = 7", rule: "Сложить — значит соединить. Начни с большего числа и досчитай вперёд." },
+        { id: "sub10", t: "Вычитание до 10", s: "9 − 4 = 5", rule: "Вычесть — значит убрать. Вспомни состав числа: 9 = 4 + 5, значит 9 − 4 = 5." },
+        { id: "cmp", t: "Больше, меньше, равно", s: "7 > 5", rule: "Знак, как клюв, открыт к большему числу: 7 > 5, 3 < 8. Если числа одинаковые — ставим =." },
+        { id: "through10", t: "Через десяток (до 20)", s: "8 + 5 = 13", rule: "Сначала дополни до 10, потом прибавь остаток: 8 + 5 = 8 + 2 + 3 = 13." },
+        { id: "missing", t: "Пропущенное число", s: "4 + □ = 9", rule: "Чтобы найти неизвестное слагаемое, из суммы вычти известное: 9 − 4 = 5." },
+      ] },
+    2: { age: "7–8 лет", desc: "Складываем и вычитаем до 100, начинаем умножать, измеряем длину, решаем задачи и находим периметр.",
+      topics: [
+        { id: "add100", t: "Сложение до 100", s: "36 + 27 = 63", rule: "Складывай отдельно десятки и единицы, потом сложи результаты: 30 + 20 = 50, 6 + 7 = 13, 50 + 13 = 63." },
+        { id: "sub100", t: "Вычитание до 100", s: "54 − 18 = 36", rule: "Вычитай по частям: сначала десятки, потом единицы: 54 − 10 = 44, 44 − 8 = 36." },
+        { id: "mul2345", t: "Умножение на 2, 3, 4, 5", s: "4 × 3 = 12", rule: "Умножить — значит сложить одинаковые числа: 4 × 3 = 4 + 4 + 4 = 12. От перестановки множителей результат не меняется." },
+        { id: "length2", t: "См, дм и метры", s: "3 дм = 30 см", rule: "1 дм = 10 см, 1 м = 10 дм = 100 см. Из крупных единиц в мелкие — умножаем." },
+        { id: "word2", t: "Текстовые задачи", s: "Было 12, отдали 5 → 7", rule: "Найди, что известно и что нужно узнать. «Всего», «больше на» — сложение; «осталось», «меньше на» — вычитание; «по … в каждой» — умножение." },
+        { id: "perim2", t: "Периметр прямоугольника", s: "P = 5 + 3 + 5 + 3 = 16", rule: "Периметр — сумма длин всех сторон. У прямоугольника: P = (длина + ширина) × 2." },
+      ] },
+    3: { age: "8–9 лет", desc: "Учим таблицу умножения и деления, порядок действий, делим с остатком и находим площадь.",
+      topics: [
+        { id: "multab", t: "Таблица умножения", s: "7 × 8 = 56", rule: "Если забыл — возьми соседний пример: 7 × 8 = 7 × 7 + 7 = 49 + 7 = 56." },
+        { id: "divtab", t: "Табличное деление", s: "56 ÷ 8 = 7", rule: "Деление — обратное умножению: 56 ÷ 8 = 7, потому что 8 × 7 = 56." },
+        { id: "order", t: "Порядок действий", s: "5 + 3 × 4 = 17", rule: "Сначала действия в скобках, потом умножение и деление, затем сложение и вычитание — слева направо." },
+        { id: "extra", t: "Внетабличное × и ÷", s: "23 × 3 = 69", rule: "Разложи число на удобные слагаемые: 23 × 3 = 20 × 3 + 3 × 3; 72 ÷ 4 = 40 ÷ 4 + 32 ÷ 4." },
+        { id: "remainder", t: "Деление с остатком", s: "17 ÷ 5 = 3 (ост. 2)", rule: "Найди наибольшее число, не больше делимого, которое делится без остатка. Остаток всегда меньше делителя." },
+        { id: "area", t: "Площадь прямоугольника", s: "S = 6 × 4 = 24 см²", rule: "Площадь прямоугольника равна длине, умноженной на ширину: S = a × b. Измеряется в квадратных единицах: см², м²." },
+      ] },
+    4: { age: "9–11 лет", desc: "Работаем с многозначными числами, переводим единицы величин, решаем задачи на движение и уравнения.",
+      topics: [
+        { id: "bigAddSub", t: "Многозначные: + и −", s: "4527 + 1386 = 5913", rule: "Записывай столбиком: разряд под разрядом. Считай справа налево, не забывай про переход через десяток." },
+        { id: "mul1", t: "Умножение на однозначное", s: "234 × 3 = 702", rule: "Умножай каждый разряд: 234 × 3 = 200 × 3 + 30 × 3 + 4 × 3 = 600 + 90 + 12." },
+        { id: "div1", t: "Деление на однозначное", s: "846 ÷ 3 = 282", rule: "Дели столбиком: найди первое неполное делимое, определи число цифр в частном и дели по разрядам." },
+        { id: "units4", t: "Время, масса, длина", s: "2 ч = 120 мин", rule: "1 ч = 60 мин, 1 мин = 60 с, 1 сут = 24 ч. 1 кг = 1000 г, 1 ц = 100 кг, 1 т = 1000 кг. 1 км = 1000 м, 1 м = 100 см." },
+        { id: "speed", t: "Скорость, время, расстояние", s: "s = v × t", rule: "Расстояние = скорость × время. Скорость = расстояние ÷ время. Время = расстояние ÷ скорость." },
+        { id: "equation", t: "Уравнения", s: "x + 27 = 64 → x = 37", rule: "Неизвестное слагаемое = сумма − слагаемое. Неизвестное уменьшаемое = разность + вычитаемое. Неизвестный множитель = произведение ÷ множитель." },
+      ] },
+  };
+
+  const PRAISE = ["Молодец!", "Отлично!", "Верно!", "Так держать!", "Здорово!", "Супер!", "Умница!"];
+  const RESULT_PHRASES = [
+    "Не расстраивайся! Прочитай правило и попробуй ещё раз — получится.",
+    "Неплохое начало! Повтори правило, и звёзд станет больше.",
+    "Хорошо! Ещё немного — и будет три звезды.",
+    "Великолепно! Ты отлично знаешь эту тему.",
+  ];
+
+  // ---------- Состояние ----------
+  let grade = +store.get("mvk:grade", 1);
+  if (!GRADES[grade]) grade = 1;
+  const stars = store.get("mvk:stars", {}) || {};
+  const starsHTML = (n) => "★".repeat(n) + `<span class="empty">${"★".repeat(3 - n)}</span>`;
+
+  // ---------- Тема оформления ----------
+  const themeBtn = $("themeBtn");
+  const SUN = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="12" cy="12" r="4"/><path d="M12 2v2M12 20v2M4.9 4.9l1.4 1.4M17.7 17.7l1.4 1.4M2 12h2M20 12h2M4.9 19.1l1.4-1.4M17.7 6.3l1.4-1.4"/></svg>';
+  const MOON = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 12.8A9 9 0 1 1 11.2 3a7 7 0 0 0 9.8 9.8z"/></svg>';
+  const isDark = () => {
+    const t = document.documentElement.dataset.theme;
+    return t ? t === "dark" : matchMedia("(prefers-color-scheme: dark)").matches;
+  };
+  const paintThemeBtn = () => {
+    themeBtn.innerHTML = isDark() ? SUN : MOON;
+    themeBtn.setAttribute("aria-label", isDark() ? "Включить светлую тему" : "Включить тёмную тему");
+  };
+  themeBtn.addEventListener("click", () => {
+    const next = isDark() ? "light" : "dark";
+    document.documentElement.dataset.theme = next;
+    try { localStorage.setItem("mvk:theme", next); } catch (e) {}
+    paintThemeBtn();
+  });
+  matchMedia("(prefers-color-scheme: dark)").addEventListener?.("change", paintThemeBtn);
+  paintThemeBtn();
+
+  // ---------- Выбор класса ----------
+  const gradeBtns = $("gradeBtns");
+  Object.entries(GRADES).forEach(([g, info]) => {
+    const b = document.createElement("button");
+    b.type = "button"; b.className = "grade-btn"; b.dataset.g = g;
+    b.style.setProperty("--gc", `var(--g${g})`);
+    b.innerHTML = `<span class="num">${g}</span><span class="lbl">класс</span><span class="age">${info.age}</span>`;
+    b.addEventListener("click", () => setGrade(+g));
+    gradeBtns.appendChild(b);
+  });
+
+  function setGrade(g) {
+    grade = g; store.set("mvk:grade", g);
+    document.body.dataset.grade = g;
+    gradeBtns.querySelectorAll(".grade-btn").forEach(b => b.setAttribute("aria-pressed", String(+b.dataset.g === g)));
+    $("gradeDesc").textContent = `${g} класс: ${GRADES[g].desc}`;
+    closeTrainer(false);
+    renderTopics();
+    renderMaterials();
+  }
+
+  function renderTopics() {
+    $("topicsTitle").textContent = `Темы ${grade} класса`;
+    const grid = $("topicsGrid");
+    grid.innerHTML = "";
+    GRADES[grade].topics.forEach(tp => {
+      const best = stars[tp.id] || 0;
+      const el = document.createElement("article");
+      el.className = "topic";
+      el.innerHTML = `
+        <h3>${tp.t}</h3>
+        <div class="sample">${tp.s}</div>
+        <p class="rule">${tp.rule}</p>
+        <div class="row">
+          <a class="video" href="${yt(tp.t + " " + grade + " класс математика")}" target="_blank" rel="noopener">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round"><rect x="2" y="5" width="20" height="14" rx="4"/><path d="M10 9l5 3-5 3z" fill="currentColor"/></svg>Видеоурок</a>
+          <span class="best" role="img" aria-label="Лучший результат: ${best} из 3 звёзд">${starsHTML(best)}</span>
+        </div>
+        <button class="btn btn-main" type="button">Решать</button>`;
+      el.querySelector("button").addEventListener("click", () => startTopic(tp));
+      grid.appendChild(el);
+    });
+  }
+
+  function renderMaterials() {
+    $("ytGrades").innerHTML = [1, 2, 3, 4].map(g =>
+      `<li><a href="${yt(`математика ${g} класс видеоуроки`)}" target="_blank" rel="noopener">Математика, ${g} класс</a></li>`).join("");
+    $("ytTopicsTitle").textContent = `Темы ${grade} класса`;
+    $("ytTopics").innerHTML = GRADES[grade].topics.map(tp =>
+      `<li><a href="${yt(tp.t + " " + grade + " класс математика")}" target="_blank" rel="noopener">${tp.t}</a></li>`).join("");
+  }
+
+  // ---------- Тренировка ----------
+  const SERIES = 10;
+  let cur = null; // { topic, i, results, item, lastKey, done }
+
+  function startTopic(tp) {
+    cur = { topic: tp, i: 0, results: [], item: null, lastKey: null, done: false };
+    $("topicsView").hidden = true;
+    $("trainerView").hidden = false;
+    $("trTitle").textContent = tp.t;
+    $("ruleText").textContent = tp.rule;
+    $("ruleBox").open = false;
+    $("grades").scrollIntoView({ block: "start" });
+    renderTask();
+  }
+
+  function closeTrainer(scroll = true) {
+    cur = null;
+    $("trainerView").hidden = true;
+    $("topicsView").hidden = false;
+    renderTopics();
+    if (scroll) $("grades").scrollIntoView({ block: "start" });
+  }
+  $("backBtn").addEventListener("click", () => closeTrainer());
+
+  function makeItem() {
+    let item, tries = 0;
+    do { item = G[cur.topic.id](); item.key = item.key || item.text; tries++; }
+    while (item.key === cur.lastKey && tries < 30);
+    cur.lastKey = item.key;
+    return item;
+  }
+
+  function renderCells() {
+    $("cells").innerHTML = Array.from({ length: SERIES }, (_, k) => {
+      const res = cur.results[k];
+      const cls = res === true ? "ok" : res === false ? "bad" : k === cur.i && !cur.done ? "cur" : "";
+      const txt = res === true ? "✓" : res === false ? "✗" : k + 1;
+      return `<span class="cell ${cls}">${txt}</span>`;
+    }).join("");
+    $("trCounter").textContent = cur.done ? "Серия завершена" : `Пример ${cur.i + 1} из ${SERIES}`;
+  }
+
+  function exprHTML(item) {
+    if (item.dots) {
+      return `<div class="dots" role="img" aria-label="Кружки">${"<i></i>".repeat(item.dots)}</div><div class="dots-q">Сколько кружков?</div>`;
+    }
+    const long = item.text.length > 34 && !item.text.includes("□");
+    const html = item.text.replace("□", '<span class="box" id="box">?</span>');
+    return `<div class="expr${long ? " long" : ""}">${html}</div>`;
+  }
+
+  function renderTask() {
+    cur.item = makeItem();
+    const it = cur.item;
+    renderCells();
+    const task = $("task");
+    const hintText = it.hint || cur.topic.rule;
+    const answerHTML = it.cmp
+      ? `<div class="answer" role="group" aria-label="Выбери знак">
+           ${["<", "=", ">"].map(s => `<button class="cmp-btn" type="button" data-s="${s}" aria-label="${s === "<" ? "меньше" : s === ">" ? "больше" : "равно"}">${s}</button>`).join("")}
+         </div>`
+      : `<form class="answer" id="ansForm" autocomplete="off">
+           ${it.pre ? `<label class="pre" for="ans">${it.pre}</label>` : ""}
+           <input id="ans" type="text" inputmode="numeric" pattern="[0-9 ]*" aria-label="Ответ" maxlength="7">
+           ${it.unit ? `<span class="unit">${it.unit}</span>` : ""}
+           <button class="btn btn-main" type="submit">Проверить</button>
+         </form>`;
+    task.innerHTML = `
+      ${exprHTML(it)}
+      ${answerHTML}
+      <div class="hint-row"><button class="btn btn-link" type="button" id="hintBtn">💡 Подсказка</button>
+        <div class="hint" id="hint" hidden>${hintText}</div></div>
+      <div class="feedback" id="fb" hidden></div>`;
+
+    $("hintBtn").addEventListener("click", () => {
+      const h = $("hint"); h.hidden = !h.hidden;
+      $("hintBtn").textContent = h.hidden ? "💡 Подсказка" : "Скрыть подсказку";
+    });
+
+    if (it.cmp) {
+      task.querySelectorAll(".cmp-btn").forEach(b => b.addEventListener("click", () => check(b.dataset.s, b)));
+      task.querySelector(".cmp-btn").focus({ preventScroll: true });
+    } else {
+      $("ansForm").addEventListener("submit", (e) => {
+        e.preventDefault();
+        const inp = $("ans");
+        const v = inp.value.replace(/\s/g, "");
+        if (!/^\d+$/.test(v)) {
+          inp.classList.remove("shake"); void inp.offsetWidth; inp.classList.add("shake");
+          inp.focus(); return;
+        }
+        check(+v);
+      });
+      $("ans").focus({ preventScroll: true });
+    }
+  }
+
+  function check(value, btn) {
+    if (cur.done || cur.results.length > cur.i) return;
+    const it = cur.item;
+    const ok = value === it.answer;
+    cur.results.push(ok);
+
+    const task = $("task");
+    task.querySelectorAll("input, .answer button").forEach(el => el.disabled = true);
+    if (btn) btn.classList.add(ok ? "picked-ok" : "picked-bad");
+    const box = $("box");
+    if (box) { box.textContent = it.answer; box.classList.add(ok ? "ok" : "bad"); }
+    $("hint").hidden = true;
+    $("hintBtn").hidden = true;
+
+    const fb = $("fb");
+    fb.hidden = false;
+    const answerStr = `${it.pre && it.pre.endsWith("=") ? it.pre + " " : ""}${it.answer}${it.unit ? " " + it.unit : ""}`;
+    fb.innerHTML = ok
+      ? `<div class="msg ok">${pick(PRAISE)}</div>`
+      : `<div class="msg bad">Не совсем…<small>Правильный ответ: ${answerStr}</small></div>`;
+    const next = document.createElement("button");
+    next.className = "btn btn-main"; next.type = "button";
+    next.textContent = cur.i < SERIES - 1 ? "Дальше →" : "Узнать результат";
+    next.addEventListener("click", goNext);
+    fb.appendChild(next);
+    renderCells();
+    next.focus({ preventScroll: true });
+  }
+
+  function goNext() {
+    cur.i++;
+    if (cur.i < SERIES) renderTask(); else showResult();
+  }
+
+  function showResult() {
+    cur.done = true;
+    renderCells();
+    const n = cur.results.filter(Boolean).length;
+    const st = n >= 9 ? 3 : n >= 7 ? 2 : n >= 5 ? 1 : 0;
+    const id = cur.topic.id;
+    const isRecord = st > (stars[id] || 0);
+    if (isRecord) { stars[id] = st; store.set("mvk:stars", stars); }
+    $("task").innerHTML = `
+      <div class="result">
+        <div class="big-stars" role="img" aria-label="${st} из 3 звёзд">${starsHTML(st)}</div>
+        <div class="score">${n} из ${SERIES}</div>
+        <p style="font-weight:700;max-width:440px;margin:0 auto">${RESULT_PHRASES[st]}</p>
+        ${isRecord && st > 0 ? `<p class="muted" style="margin-top:8px">Новый рекорд по теме!</p>` : ""}
+        <div class="actions">
+          <button class="btn btn-main" type="button" id="againBtn">Ещё раз</button>
+          <button class="btn btn-soft" type="button" id="otherBtn">Другая тема</button>
+        </div>
+      </div>`;
+    $("ruleBox").open = st < 3;
+    $("againBtn").addEventListener("click", () => startTopic(cur.topic));
+    $("otherBtn").addEventListener("click", () => closeTrainer());
+    $("againBtn").focus({ preventScroll: true });
+  }
+
+  // ---------- Таблица умножения ----------
+  const mt = $("mt");
+  let mtHTML = '<span class="corner">×</span>';
+  for (let c = 1; c <= 10; c++) mtHTML += `<span class="h" data-c="${c}">${c}</span>`;
+  for (let rr = 1; rr <= 10; rr++) {
+    mtHTML += `<span class="h" data-r="${rr}">${rr}</span>`;
+    for (let c = 1; c <= 10; c++) mtHTML += `<button type="button" data-r="${rr}" data-c="${c}" aria-label="${rr} умножить на ${c}">${rr * c}</button>`;
+  }
+  mt.innerHTML = mtHTML;
+  mt.addEventListener("click", (e) => {
+    const b = e.target.closest("button");
+    if (!b) return;
+    const R = b.dataset.r, C = b.dataset.c;
+    mt.querySelectorAll(".hl, .sel").forEach(x => x.classList.remove("hl", "sel"));
+    mt.querySelectorAll(`[data-r="${R}"], [data-c="${C}"]`).forEach(x => x.classList.add("hl"));
+    b.classList.add("sel");
+    $("mtOut").textContent = `${R} × ${C} = ${R * C}`;
+  });
+  $("mtTrain").addEventListener("click", () => {
+    setGrade(3);
+    startTopic(GRADES[3].topics[0]);
+  });
+
+  // ---------- Старт ----------
+  setGrade(grade);
+})();
+</script>
+</body>
+</html>
